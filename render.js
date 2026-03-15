@@ -1,59 +1,71 @@
 var canvas = document.getElementById("MainCanvas");
-/** @type {CanvasRenderingContext2D} */
 var ctx = canvas.getContext("2d");
 
 var WIDTH = canvas.width;
 var HEIGHT = canvas.height;
-//const PADDING = 100;
 const FPS = 60;
 const MIN_PIXEL_SIZE = 1;
 const MAX_PIXEL_SIZE = 20;
-var pointsArray = new Array();
-var verticesArray = [
-    {x: 0.5, y: 0.5, z:1},
-    {x: 0.5, y:-0.5, z:1},
-    {x:-0.5, y:-0.5, z:1},
-    {x:-0.5, y: 0.5, z:1},
 
-    {x: 0.5, y: 0.5, z:0.5},
-    {x: 0.5, y:-0.5, z:0.5},
-    {x:-0.5, y:-0.5, z:0.5},
-    {x:-0.5, y: 0.5, z:0.5},
+const CUBE = [
+    { x: 0.5, y: 0.5, z: 0.5 },
+    { x: 0.5, y: -0.5, z: 0.5 },
+    { x: -0.5, y: -0.5, z: 0.5 },
+    { x: -0.5, y: 0.5, z: 0.5 },
+
+    { x: 0.5, y: 0.5, z: -0.5 },
+    { x: 0.5, y: -0.5, z: -0.5 },
+    { x: -0.5, y: -0.5, z: -0.5 },
+    { x: -0.5, y: 0.5, z: -0.5 },
 ]
 
-function toNDC(x, y, z = 0)
+function translate({x, y, z}, {dx, dy, dz})
 {
-    var Point = {};
-    x = x / WIDTH;
-    y = y / HEIGHT;
-    // 0 -> 1
-    x = (x * 2) - 1;
-    y = (y * 2) - 1;
-    //-1 -> 1
-    Point.x = x;
-    Point.y = y;
-    Point.z = z;
-    return Point
+    return {
+        x: x + dx,
+        y: y + dy,
+        z: z + dz,
+    };
 }
 
-function ProjectToScreen({x, y, z})
+function rotate({x, y, z}, angle = 0)
 {
-    x = x/z;
-    y = y/z;
-    Point = {x, y, z}
-    return Point
+    return {
+        x: x * Math.cos(angle) - z * Math.sin(angle),
+        y,
+        z: x * Math.sin(angle) + z * Math.cos(angle)
+    };
 }
 
-function toScreenCoordinates({x, y, z})
+function toScreenSpace(p)
 {
-    var Point = {};
-    x = (x + 1) / 2 * WIDTH;
-    y = (1 - (y + 1) / 2) * HEIGHT;
+    p.x = (p.x + 1) / 2 * WIDTH;
+    p.y = (1 - (p.y + 1) / 2) * HEIGHT;
+    return p;
+}
 
-    Point.x = x;
-    Point.y = y;
-    Point.z = z;
-    return Point
+function projectOnScreen(p)
+{
+    p.x = p.x / p.z;
+    p.y = p.y / p.z;
+    return p;
+}
+
+function drawStars(Point, BlinkPeriod) //@TODO: make stars flick more naturally
+{
+    SC = Math.random();
+    drawPixelOnScreen(Point, "white", BlinkPeriod);
+}
+
+function drawPixelOnScreen(ScreenCoordinate, Color = "white", PixelSize = 2)
+{
+    ctx.fillStyle = Color;
+    if (PixelSize > MAX_PIXEL_SIZE)
+        PixelSize = MAX_PIXEL_SIZE;
+    if (PixelSize < MIN_PIXEL_SIZE)
+        PixelSize = MIN_PIXEL_SIZE;
+    ctx.fillRect(ScreenCoordinate.x - PixelSize / 2, ScreenCoordinate.y - PixelSize / 2, PixelSize, PixelSize);
+
 }
 
 function drawLine(a, b, color="green")
@@ -65,21 +77,14 @@ function drawLine(a, b, color="green")
     ctx.stroke();
 }
 
-function drawPixelOnScreen(ScreenCoordinate, Color="green", PixelSize = 10)
-{
-    ctx.fillStyle = Color;
-    if (PixelSize > MAX_PIXEL_SIZE)
-        PixelSize = MAX_PIXEL_SIZE;
-    if (PixelSize < MIN_PIXEL_SIZE)
-        PixelSize = MIN_PIXEL_SIZE;
-    ctx.fillRect(ScreenCoordinate.x - PixelSize / 2, ScreenCoordinate.y - PixelSize / 2, PixelSize, PixelSize);
-}
 
 function clearScreen(ClearColor = "black")
 {
     ctx.fillStyle = ClearColor;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 }
+
+var starsArray = new Array();
 
 function CreateUniformPointsArray(ArrayHandle, numOfPointsX, numOfPointsY, PADDING = 0)
 {
@@ -97,53 +102,62 @@ function CreateUniformPointsArray(ArrayHandle, numOfPointsX, numOfPointsY, PADDI
     }
 }
 
-function CreateRandomPointsArray(ArrayHandle, numOfPointsX, numOfPointsY, PADDING = 0)
+function CreateRandomPointsArray(ArrayHandle, numOfPointsX, numOfPointsY)
 {
-    var NumX = (WIDTH   - 2 * PADDING) / (numOfPointsX - 1);
-    var NumY = (HEIGHT  - 2 * PADDING) / (numOfPointsY - 1);
+    var NumX = WIDTH / (numOfPointsX - 1);
+    var NumY = HEIGHT / (numOfPointsY - 1);
     for (var i = 0; i < numOfPointsX; i++)
     {
         for (var j = 0; j < numOfPointsY; j++)
         {   
             var Point = {};
-            Point.x = Math.random() * (WIDTH   - 2 * PADDING)  + PADDING;
-            Point.y = Math.random() * (HEIGHT   - 2 * PADDING) + PADDING;
+            Point.x = Math.random() * WIDTH;
+            Point.y = Math.random() * HEIGHT;
             ArrayHandle.push(Point);
         }
     }
 }
 
-function rotate({x, y, z}, angle)
-{
-    x = x * Math.cos(angle) - z * Math.sin(angle);
-    z = x * Math.sin(angle) + z * Math.cos(angle);
-    Point = {x, y, z};
-    return Point;
-}
+
 
 var t = 0;
 var angle = 0;
-var dz = 0.01;
-var color = ["red", "orange", "yellow", "green", "blue", "purple", "cyan", "magenta"]
-
 function mainLoop()
 {
+    const translation = {dx: 0, dy: 0, dz: t}
+    dt = 1 / FPS;
+    angle = t;
     clearScreen();
-    for (i = 0; i < verticesArray.length; i++)
+    for (const Point of starsArray)
     {
-        var projected_a = rotate(verticesArray[i], angle);
-        var projected_b = rotate(verticesArray[(i+1)%verticesArray.length], angle);
-        projected_a = ProjectToScreen(projected_a);       
-        projected_b = ProjectToScreen(projected_b);       
-        projected_a = toScreenCoordinates(projected_a);
-        projected_b = toScreenCoordinates(projected_b);
-        drawPixelOnScreen(projected_a, color[i%color.length]);
-        drawLine(projected_a, projected_b);
+        drawStars(Point, 2 * Math.sin(t));        
     }
-    t = t + 1000/FPS;
-    angle += dz;
+    var projectedVertices = new Array();
+    for (const Vertex of CUBE)
+    {
+        let ProjectedVertex = toScreenSpace(projectOnScreen(translate(rotate(Vertex, angle), translation)));
+        drawPixelOnScreen(ProjectedVertex, "red", 5);
+        projectedVertices.push(ProjectedVertex);
+    }
+    for (i = 0; i < projectedVertices.length / 2; i++)
+    {
+        drawLine(
+                    projectedVertices[i], 
+                    projectedVertices[(i+1) % (projectedVertices.length / 2)]);
+        // console.log((i % (projectedVertices.length / 2)) + projectedVertices.length / 2);
+        drawLine(
+                    projectedVertices[i + projectedVertices.length / 2], 
+                    projectedVertices[((i+1) %( projectedVertices.length / 2)) + projectedVertices.length / 2]
+                );
+        drawLine(
+                    projectedVertices[i], 
+                    projectedVertices[i + projectedVertices.length / 2]
+                );
+    }
+    t += dt;
     setTimeout(mainLoop, 1000/FPS); 
 }
-CreateRandomPointsArray(pointsArray, 10, 10);
+
+CreateRandomPointsArray(starsArray, 20, 20);
 
 setTimeout(mainLoop, 1000/FPS);
